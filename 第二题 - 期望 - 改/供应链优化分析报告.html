@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>供应商选择与供应链优化分析报告</title>
+    
+    <!-- CSS框架 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+    
+    <!-- 图表库 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    
+    <!-- 数据定义 -->
+    <script>
+        const sampleData = [
+            {"供应商ID": "S229", "材料分类": "A", "TOPSIS综合得分": 0.7922, "总供货量": 84808.33},
+            {"供应商ID": "S140", "材料分类": "B", "TOPSIS综合得分": 0.729, "总供货量": 69862.12},
+            {"供应商ID": "S361", "材料分类": "C", "TOPSIS综合得分": 0.7028, "总供货量": 70780.56},
+            {"供应商ID": "S201", "材料分类": "A", "TOPSIS综合得分": 0.59, "总供货量": 40388.33},
+            {"供应商ID": "S108", "材料分类": "B", "TOPSIS综合得分": 0.5536, "总供货量": 42651.52},
+            {"供应商ID": "S139", "材料分类": "B", "TOPSIS综合得分": 0.4817, "总供货量": 30510.61},
+            {"供应商ID": "S151", "材料分类": "C", "TOPSIS综合得分": 0.4782, "总供货量": 29347.22},
+            {"供应商ID": "S282", "材料分类": "A", "TOPSIS综合得分": 0.4197, "总供货量": 35366.67},
+            {"供应商ID": "S340", "材料分类": "B", "TOPSIS综合得分": 0.4074, "总供货量": 34181.82},
+            {"供应商ID": "S275", "材料分类": "A", "TOPSIS综合得分": 0.4028, "总供货量": 32800.0}
+        ];
+
+        const weeklySupplyData = [
+            {"week": 1, "supply": 70590.15, "demand": 28200, "shortage": 0},
+            {"week": 2, "supply": 28942.83, "demand": 28200, "shortage": 0},
+            {"week": 3, "supply": 34248.64, "demand": 28200, "shortage": 0},
+            {"week": 4, "supply": 19440.61, "demand": 28200, "shortage": 8759.39},
+            {"week": 5, "supply": 55012.17, "demand": 28200, "shortage": 0},
+            {"week": 6, "supply": 21218.59, "demand": 28200, "shortage": 6981.41},
+            {"week": 7, "supply": 22370.20, "demand": 28200, "shortage": 5829.80},
+            {"week": 8, "supply": 31156.97, "demand": 28200, "shortage": 0},
+            {"week": 9, "supply": 30192.83, "demand": 28200, "shortage": 0},
+            {"week": 10, "supply": 27042.32, "demand": 28200, "shortage": 1157.68},
+            {"week": 11, "supply": 26604.80, "demand": 28200, "shortage": 1595.20},
+            {"week": 12, "supply": 25850.25, "demand": 28200, "shortage": 2349.75},
+            {"week": 13, "supply": 27188.08, "demand": 28200, "shortage": 1011.92},
+            {"week": 14, "supply": 30468.43, "demand": 28200, "shortage": 0},
+            {"week": 15, "supply": 26505.81, "demand": 28200, "shortage": 1694.19},
+            {"week": 16, "supply": 29749.49, "demand": 28200, "shortage": 0},
+            {"week": 17, "supply": 34607.83, "demand": 28200, "shortage": 0},
+            {"week": 18, "supply": 25548.99, "demand": 28200, "shortage": 2651.01},
+            {"week": 19, "supply": 27627.53, "demand": 28200, "shortage": 572.47},
+            {"week": 20, "supply": 25664.65, "demand": 28200, "shortage": 2535.35},
+            {"week": 21, "supply": 28681.82, "demand": 28200, "shortage": 0},
+            {"week": 22, "supply": 37546.72, "demand": 28200, "shortage": 0},
+            {"week": 23, "supply": 34985.61, "demand": 28200, "shortage": 0},
+            {"week": 24, "supply": 24959.29, "demand": 28200, "shortage": 3240.71}
+        ];
+
+        const materialData = [
+            {"material": "A", "count": 7},
+            {"material": "B", "count": 7},
+            {"material": "C", "count": 6}
+        ];
+
+        const supplierVolumeData = [
+            {"supplier": "S229", "volume": 84808.33, "material": "A"},
+            {"supplier": "S140", "volume": 69862.12, "material": "B"},
+            {"supplier": "S361", "volume": 70780.56, "material": "C"},
+            {"supplier": "S201", "volume": 40388.33, "material": "A"},
+            {"supplier": "S108", "volume": 42651.52, "material": "B"},
+            {"supplier": "S139", "volume": 30510.61, "material": "B"},
+            {"supplier": "S151", "volume": 29347.22, "material": "C"},
+            {"supplier": "S282", "volume": 35366.67, "material": "A"},
+            {"supplier": "S340", "volume": 34181.82, "material": "B"},
+            {"supplier": "S275", "volume": 32800.0, "material": "A"},
+            {"supplier": "S329", "volume": 32850.0, "material": "A"},
+            {"supplier": "S308", "volume": 36636.36, "material": "B"},
+            {"supplier": "S330", "volume": 44954.55, "material": "B"},
+            {"supplier": "S131", "volume": 28651.52, "material": "B"},
+            {"supplier": "S395", "volume": 24068.33, "material": "A"}
+        ];
+
+        const transportData = [
+            {"id": "T3", "loss_rate": 0.0712},
+            {"id": "T4", "loss_rate": 0.1652},
+            {"id": "T6", "loss_rate": 0.4687},
+            {"id": "T8", "loss_rate": 0.8515},
+            {"id": "T2", "loss_rate": 1.0874},
+            {"id": "T1", "loss_rate": 1.7785}
+        ];
+
+        const keyMetrics = {
+            "total_suppliers": 20,
+            "total_topsis_score": 8.9945,
+            "total_supply": 746204.6,
+            "total_demand": 733200,
+            "shortage_weeks": 12,
+            "avg_weekly_supply": 31091.86,
+            "recommended_transporters": 6,
+            "top_transporters": ["T3", "T4", "T6"]
+        };
+    </script>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
+    <!-- 页面头部 -->
+    <header class="bg-white shadow-lg border-b border-blue-100">
+        <div class="max-w-7xl mx-auto px-6 py-8">
+            <div class="text-center">
+                <h1 class="text-4xl font-bold text-gray-900 mb-2">
+                    <i class="fas fa-truck-loading text-blue-600 mr-3"></i>
+                    供应商选择与供应链优化分析报告
+                </h1>
+                <p class="text-lg text-gray-600">基于多目标规划的24周原材料订购与转运计划优化</p>
+                <div class="mt-4 flex justify-center space-x-8 text-sm text-gray-500">
+                    <span><i class="fas fa-calendar-alt mr-1"></i>计划周期：24周</span>
+                    <span><i class="fas fa-industry mr-1"></i>周产能：28,200立方米</span>
+                    <span><i class="fas fa-boxes mr-1"></i>原材料类型：A/B/C三类</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 py-8 space-y-8">
+        <!-- 关键指标卡片 -->
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="bg-white rounded-xl shadow-lg p-6 border border-blue-100 hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600 mb-1">优化供应商数量</p>
+                        <p class="text-3xl font-bold text-blue-600" id="totalSuppliers">20</p>
+                    </div>
+                    <div class="bg-blue-100 p-3 rounded-full">
+                        <i class="fas fa-handshake text-blue-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-6 border border-green-100 hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600 mb-1">TOPSIS评分总和</p>
+                        <p class="text-3xl font-bold text-green-600" id="topsisScore">8.99</p>
+                    </div>
+                    <div class="bg-green-100 p-3 rounded-full">
+                        <i class="fas fa-star text-green-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-6 border border-purple-100 hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600 mb-1">总供货量</p>
+                        <p class="text-3xl font-bold text-purple-600" id="totalSupply">74.6万</p>
+                    </div>
+                    <div class="bg-purple-100 p-3 rounded-full">
+                        <i class="fas fa-box text-purple-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-6 border border-orange-100 hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600 mb-1">建议转运商数量</p>
+                        <p class="text-3xl font-bold text-orange-600" id="transporters">6</p>
+                    </div>
+                    <div class="bg-orange-100 p-3 rounded-full">
+                        <i class="fas fa-truck text-orange-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 样例数据表格 -->
+        <section class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                <i class="fas fa-table text-blue-600 mr-3"></i>
+                优选供应商样例数据（前10名）
+            </h2>
+            <div class="overflow-x-auto">
+                <table class="w-full table-auto">
+                    <thead>
+                        <tr class="bg-gray-50 border-b border-gray-200">
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">供应商ID</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">材料分类</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TOPSIS评分</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">总供货量(立方米)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sampleTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- 数据将通过JavaScript填充 -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 图表区域 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- 每周供货量对比图 -->
+            <section class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+                <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-chart-line text-blue-600 mr-2"></i>
+                    每周供货量与需求量对比
+                </h3>
+                <div class="h-80">
+                    <canvas id="weeklySupplyChart"></canvas>
+                </div>
+            </section>
+
+            <!-- 材料分类分布图 -->
+            <section class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+                <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-chart-pie text-green-600 mr-2"></i>
+                    优选供应商材料分类分布
+                </h3>
+                <div class="h-80">
+                    <canvas id="materialChart"></canvas>
+                </div>
+            </section>
+
+            <!-- 供应商供货量排名 -->
+            <section class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+                <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-chart-bar text-purple-600 mr-2"></i>
+                    前15名供应商供货量排名
+                </h3>
+                <div class="h-80">
+                    <canvas id="supplierVolumeChart"></canvas>
+                </div>
+            </section>
+
+            <!-- 转运商损耗率对比 -->
+            <section class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+                <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-percentage text-orange-600 mr-2"></i>
+                    转运商平均损耗率对比
+                </h3>
+                <div class="h-80">
+                    <canvas id="transportChart"></canvas>
+                </div>
+            </section>
+        </div>
+
+        <!-- 数据分析总结 -->
+        <section class="bg-white rounded-xl shadow-lg p-8 border border-gray-100">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                <i class="fas fa-lightbulb text-yellow-600 mr-3"></i>
+                数据分析总结与优化建议
+            </h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-check-circle text-green-600 mr-2"></i>
+                        优化成果
+                    </h3>
+                    <ul class="space-y-3 text-gray-700">
+                        <li class="flex items-start">
+                            <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded mr-3 mt-1">优化</span>
+                            <span>从402个供应商中精选出<strong>20个</strong>最优供应商，大幅简化供应链管理</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded mr-3 mt-1">高效</span>
+                            <span>总供货量<strong>746,204.6立方米</strong>，满足24周生产需求及库存要求</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="bg-purple-100 text-purple-800 text-xs font-medium px-2.5 py-0.5 rounded mr-3 mt-1">均衡</span>
+                            <span>材料分类分布均衡：A类7个、B类7个、C类6个，降低供应链风险</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="bg-orange-100 text-orange-800 text-xs font-medium px-2.5 py-0.5 rounded mr-3 mt-1">优质</span>
+                            <span>TOPSIS评分总和达<strong>8.9945</strong>，供应商整体质量较高</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-exclamation-triangle text-yellow-600 mr-2"></i>
+                        注意事项
+                    </h3>
+                    <ul class="space-y-3 text-gray-700">
+                        <li class="flex items-start">
+                            <span class="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded mr-3 mt-1">风险</span>
+                            <span>24周中有<strong>12周</strong>供货不足，需依靠库存管理缓冲波动</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded mr-3 mt-1">缺口</span>
+                            <span>最大周缺口<strong>8,759.39立方米</strong>（第4周），需重点关注</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="bg-indigo-100 text-indigo-800 text-xs font-medium px-2.5 py-0.5 rounded mr-3 mt-1">运输</span>
+                            <span>建议选择<strong>6家</strong>转运商，优先T3(0.07%)、T4(0.17%)、T6(0.47%)</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="bg-teal-100 text-teal-800 text-xs font-medium px-2.5 py-0.5 rounded mr-3 mt-1">管理</span>
+                            <span>建立动态库存管理机制，确保库存始终≥两周生产需求</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="mt-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-route text-blue-600 mr-2"></i>
+                    实施建议
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-gray-700">
+                    <div class="text-center">
+                        <div class="bg-blue-100 p-3 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3">
+                            <i class="fas fa-handshake text-blue-600"></i>
+                        </div>
+                        <h4 class="font-semibold text-gray-800 mb-2">供应商管理</h4>
+                        <p>与优选供应商签订长期合作协议，建立战略合作伙伴关系</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="bg-green-100 p-3 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3">
+                            <i class="fas fa-boxes text-green-600"></i>
+                        </div>
+                        <h4 class="font-semibold text-gray-800 mb-2">库存策略</h4>
+                        <p>在供货充足周增加库存，在供货不足周释放库存，保持动态平衡</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="bg-purple-100 p-3 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3">
+                            <i class="fas fa-truck text-purple-600"></i>
+                        </div>
+                        <h4 class="font-semibold text-gray-800 mb-2">运输优化</h4>
+                        <p>根据损耗率和运力合理分配转运商，降低运输成本和损耗</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-gray-900 text-white py-8 mt-12">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <p class="text-gray-400">
+                <i class="fas fa-chart-bar mr-2"></i>
+                供应链优化分析报告 | 基于多目标规划的智能决策支持
+            </p>
+            <p class="text-gray-500 text-sm mt-2">
+                数据驱动决策，优化企业供应链管理
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeData();
+            createCharts();
+        });
+
+        function initializeData() {
+            // 填充样例数据表格
+            const tableBody = document.getElementById('sampleTableBody');
+            sampleData.forEach((supplier, index) => {
+                const row = document.createElement('tr');
+                row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                
+                const materialColors = {
+                    'A': 'bg-red-100 text-red-800',
+                    'B': 'bg-blue-100 text-blue-800',
+                    'C': 'bg-green-100 text-green-800'
+                };
+                
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${supplier.供应商ID}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${materialColors[supplier.材料分类]}">
+                            ${supplier.材料分类}类
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">${supplier.TOPSIS综合得分}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${supplier.总供货量.toLocaleString()}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        function createCharts() {
+            createWeeklySupplyChart();
+            createMaterialChart();
+            createSupplierVolumeChart();
+            createTransportChart();
+        }
+
+        function createWeeklySupplyChart() {
+            const ctx = document.getElementById('weeklySupplyChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: weeklySupplyData.map(d => `第${d.week}周`),
+                    datasets: [{
+                        label: '供货量',
+                        data: weeklySupplyData.map(d => d.supply),
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }, {
+                        label: '需求量',
+                        data: weeklySupplyData.map(d => d.demand),
+                        borderColor: 'rgb(239, 68, 68)',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString() + ' m³';
+                                }
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createMaterialChart() {
+            const ctx = document.getElementById('materialChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: materialData.map(d => `${d.material}类材料`),
+                    datasets: [{
+                        data: materialData.map(d => d.count),
+                        backgroundColor: [
+                            'rgba(239, 68, 68, 0.8)',
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(34, 197, 94, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgb(239, 68, 68)',
+                            'rgb(59, 130, 246)',
+                            'rgb(34, 197, 94)'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                        }
+                    }
+                }
+            });
+        }
+
+        function createSupplierVolumeChart() {
+            const ctx = document.getElementById('supplierVolumeChart').getContext('2d');
+            
+            const materialColors = {
+                'A': 'rgba(239, 68, 68, 0.8)',
+                'B': 'rgba(59, 130, 246, 0.8)',
+                'C': 'rgba(34, 197, 94, 0.8)'
+            };
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: supplierVolumeData.map(d => d.supplier),
+                    datasets: [{
+                        label: '供货量 (m³)',
+                        data: supplierVolumeData.map(d => d.volume),
+                        backgroundColor: supplierVolumeData.map(d => materialColors[d.material]),
+                        borderColor: supplierVolumeData.map(d => materialColors[d.material].replace('0.8', '1')),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return (value / 1000).toFixed(0) + 'k';
+                                }
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createTransportChart() {
+            const ctx = document.getElementById('transportChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: transportData.map(d => d.id),
+                    datasets: [{
+                        label: '平均损耗率 (%)',
+                        data: transportData.map(d => d.loss_rate),
+                        backgroundColor: [
+                            'rgba(34, 197, 94, 0.8)',
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(168, 85, 247, 0.8)',
+                            'rgba(251, 191, 36, 0.8)',
+                            'rgba(249, 115, 22, 0.8)',
+                            'rgba(239, 68, 68, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgb(34, 197, 94)',
+                            'rgb(59, 130, 246)',
+                            'rgb(168, 85, 247)',
+                            'rgb(251, 191, 36)',
+                            'rgb(249, 115, 22)',
+                            'rgb(239, 68, 68)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(4) + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
